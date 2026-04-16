@@ -1,207 +1,332 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
+CoordMode("Mouse", "Screen")
+CoordMode("ToolTip", "Screen")
 
 ; ============================================================
-;  BUCKSHOT ROULETTE - CUSTOM KEYBINDS par Antigravity
-;  Resolution: 1920x1080
-; ============================================================
-;
-;  CONTROLES:
-;    Q  = Tirer sur SOI-MEME
-;    E  = Tirer sur le DEALER
-;    1  = Item slot 1 (gauche)
-;    2  = Item slot 2
-;    3  = Item slot 3
-;    4  = Item slot 4
-;    5  = Item slot 5
-;    6  = Item slot 6
-;    7  = Item slot 7
-;    8  = Item slot 8 (droite)
-;
-;  UTILITAIRES:
-;    F1 = Mode Calibration ON/OFF (affiche les coordonnées)
-;    F2 = Sauvegarder la position actuelle de la souris
-;    F3 = Recharger le script
-;    F4 = Quitter le script
-;
-;  COMMENT CALIBRER:
-;    1. Lance le jeu
-;    2. Appuie F1 pour activer le mode calibration
-;    3. Place ta souris sur chaque item/position
-;    4. Appuie F2 pour noter la position
-;    5. Modifie les coordonnées ci-dessous
-;    6. Appuie F3 pour recharger
+;  BUCKSHOT ROULETTE - CUSTOM KEYBINDS v2.0
+;  Avec Menu de Calibration GUI
 ; ============================================================
 
-; --- POSITIONS A CALIBRER (x, y pour résolution 1920x1080) ---
-; Ces positions sont des estimations. Utilise F1+F2 pour calibrer !
+; --- CONFIG FILE ---
+configFile := A_ScriptDir "\BuckshotKeys.ini"
 
-; Position pour tirer sur soi-même
-SHOOT_SELF_X := 960
-SHOOT_SELF_Y := 750
+; --- POSITIONS (chargées depuis le fichier INI ou par défaut) ---
+positions := Map()
+positions["shoot_self"]  := {name: "🔫 Tirer sur SOI (Q)",    x: 960,  y: 750, key: "q"}
+positions["shoot_dealer"] := {name: "🎯 Tirer sur DEALER (E)", x: 960,  y: 350, key: "e"}
+positions["item_1"]      := {name: "📦 Item 1",                x: 500,  y: 850, key: "1"}
+positions["item_2"]      := {name: "📦 Item 2",                x: 580,  y: 850, key: "2"}
+positions["item_3"]      := {name: "📦 Item 3",                x: 660,  y: 850, key: "3"}
+positions["item_4"]      := {name: "📦 Item 4",                x: 740,  y: 850, key: "4"}
+positions["item_5"]      := {name: "📦 Item 5",                x: 820,  y: 850, key: "5"}
+positions["item_6"]      := {name: "📦 Item 6",                x: 900,  y: 850, key: "6"}
+positions["item_7"]      := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
+positions["item_8"]      := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
 
-; Position pour tirer sur le dealer (adversaire)
-SHOOT_DEALER_X := 960
-SHOOT_DEALER_Y := 350
+; --- ÉTAT ---
+calibrating := ""
+scriptActive := true
 
-; Positions des 8 items (de gauche à droite sur la table)
-; Les items sont généralement en bas de l'écran, côté joueur
-ITEM_1_X := 500
-ITEM_1_Y := 850
+; --- CHARGER CONFIG ---
+LoadConfig()
 
-ITEM_2_X := 580
-ITEM_2_Y := 850
+; --- CRÉER LE MENU GUI ---
+CreateMainGUI()
 
-ITEM_3_X := 660
-ITEM_3_Y := 850
+; ============================================================
+;  FONCTIONS
+; ============================================================
 
-ITEM_4_X := 740
-ITEM_4_Y := 850
+LoadConfig() {
+    global positions, configFile
+    if !FileExist(configFile)
+        return
+    for id, pos in positions {
+        x := IniRead(configFile, "Positions", id "_x", pos.x)
+        y := IniRead(configFile, "Positions", id "_y", pos.y)
+        positions[id] := {name: pos.name, x: Integer(x), y: Integer(y), key: pos.key}
+    }
+}
 
-ITEM_5_X := 820
-ITEM_5_Y := 850
+SaveConfig() {
+    global positions, configFile
+    for id, pos in positions {
+        IniWrite(pos.x, configFile, "Positions", id "_x")
+        IniWrite(pos.y, configFile, "Positions", id "_y")
+    }
+}
 
-ITEM_6_X := 900
-ITEM_6_Y := 850
+CreateMainGUI() {
+    global positions, mainGui, statusText, btnMap
 
-ITEM_7_X := 980
-ITEM_7_Y := 850
+    btnMap := Map()
 
-ITEM_8_X := 1060
-ITEM_8_Y := 850
+    mainGui := Gui("+AlwaysOnTop +ToolWindow", "🎮 BuckshotKeys v2.0")
+    mainGui.BackColor := "0x1a1a2e"
+    mainGui.SetFont("s11 c0xeaeaea", "Segoe UI")
 
-; --- VARIABLES GLOBALES ---
-calibrationMode := false
-savedPositions := []
+    ; --- Titre ---
+    mainGui.SetFont("s16 Bold c0xe94560")
+    mainGui.Add("Text", "x20 y10 w360 Center", "🎯 BUCKSHOT ROULETTE")
+    mainGui.SetFont("s9 Norm c0x888888")
+    mainGui.Add("Text", "x20 y40 w360 Center", "Clique sur un bouton, puis clique dans le jeu")
 
-; --- TOOLTIP DE BIENVENUE ---
-ToolTip("🎯 BuckshotKeys actif!`nF1 = Calibration`nF3 = Recharger`nF4 = Quitter")
-SetTimer(() => ToolTip(), -3000)
+    ; --- Separator ---
+    mainGui.SetFont("s1")
+    mainGui.Add("Text", "x20 y60 w360 h2 Background0x333355")
 
-; --- FONCTIONS ---
+    ; --- Section TIR ---
+    mainGui.SetFont("s12 Bold c0xe94560")
+    mainGui.Add("Text", "x20 y70 w360", "⚔️ TIR")
+    mainGui.SetFont("s10 Norm c0xeaeaea")
+
+    yPos := 95
+    for id, pos in positions {
+        if (id != "shoot_self" && id != "shoot_dealer")
+            continue
+        btn := mainGui.Add("Button", "x20 y" yPos " w240 h32", pos.name)
+        btn.OnEvent("Click", MakeCalibHandler(id))
+        coordLabel := mainGui.Add("Text", "x270 y" (yPos + 6) " w120 c0x53a653", "X:" pos.x " Y:" pos.y)
+        btnMap[id] := coordLabel
+        yPos += 38
+    }
+
+    ; --- Separator ---
+    mainGui.SetFont("s1")
+    mainGui.Add("Text", "x20 y" yPos " w360 h2 Background0x333355")
+    yPos += 8
+
+    ; --- Section ITEMS ---
+    mainGui.SetFont("s12 Bold c0xe94560")
+    mainGui.Add("Text", "x20 y" yPos " w360", "📦 ITEMS")
+    mainGui.SetFont("s10 Norm c0xeaeaea")
+    yPos += 28
+
+    for id, pos in positions {
+        if (id = "shoot_self" || id = "shoot_dealer")
+            continue
+        btn := mainGui.Add("Button", "x20 y" yPos " w240 h30", pos.name)
+        btn.OnEvent("Click", MakeCalibHandler(id))
+        coordLabel := mainGui.Add("Text", "x270 y" (yPos + 6) " w120 c0x53a653", "X:" pos.x " Y:" pos.y)
+        btnMap[id] := coordLabel
+        yPos += 34
+    }
+
+    ; --- Separator ---
+    yPos += 5
+    mainGui.SetFont("s1")
+    mainGui.Add("Text", "x20 y" yPos " w360 h2 Background0x333355")
+    yPos += 10
+
+    ; --- Status ---
+    mainGui.SetFont("s10 Norm c0x53a653")
+    statusText := mainGui.Add("Text", "x20 y" yPos " w360 h25 Center", "✅ Prêt - Lance le jeu et utilise les touches!")
+    yPos += 30
+
+    ; --- Boutons bas ---
+    mainGui.SetFont("s10 Norm c0xeaeaea")
+    btnReset := mainGui.Add("Button", "x20 y" yPos " w115 h35", "🔄 Reset")
+    btnReset.OnEvent("Click", (*) => ResetAll())
+
+    btnSave := mainGui.Add("Button", "x140 y" yPos " w120 h35", "💾 Sauvegarder")
+    btnSave.OnEvent("Click", (*) => ManualSave())
+
+    btnToggle := mainGui.Add("Button", "x265 y" yPos " w115 h35", "⏸️ Pause")
+    btnToggle.OnEvent("Click", (*) => ToggleScript())
+
+    yPos += 50
+    mainGui.Show("w400 h" yPos)
+    mainGui.OnEvent("Close", (*) => ExitApp())
+}
+
+MakeCalibHandler(targetId) {
+    return (*) => StartCalibration(targetId)
+}
+
+StartCalibration(id) {
+    global calibrating, statusText, positions
+    calibrating := id
+    pos := positions[id]
+    statusText.Value := "🔴 CLIQUE dans le jeu pour: " pos.name
+    statusText.Opt("c0xe94560")
+
+    ; Afficher un tooltip qui suit la souris
+    SetTimer(CalibTooltip, 30)
+
+    ; Attendre le clic de l'utilisateur via Hotkey
+    Hotkey("~LButton", CaptureClick, "On")
+}
+
+CalibTooltip() {
+    global calibrating
+    if (calibrating = "") {
+        SetTimer(CalibTooltip, 0)
+        ToolTip()
+        return
+    }
+    MouseGetPos(&mx, &my)
+    ToolTip("📐 X:" mx " Y:" my "`nClique pour définir la position`nEchap pour annuler", mx + 20, my + 20)
+}
+
+CaptureClick(thisHotkey) {
+    global calibrating, positions, statusText, btnMap
+    if (calibrating = "")
+        return
+
+    ; Désactiver le hotkey
+    Hotkey("~LButton", CaptureClick, "Off")
+    SetTimer(CalibTooltip, 0)
+    ToolTip()
+
+    ; Capturer la position
+    MouseGetPos(&mx, &my)
+    id := calibrating
+    pos := positions[id]
+    positions[id] := {name: pos.name, x: mx, y: my, key: pos.key}
+
+    ; Mettre à jour le label
+    if btnMap.Has(id) {
+        btnMap[id].Value := "X:" mx " Y:" my
+        btnMap[id].Opt("c0x53a653")
+    }
+
+    ; Sauvegarder automatiquement
+    SaveConfig()
+
+    calibrating := ""
+    statusText.Value := "✅ " pos.name " → X:" mx " Y:" my " (Sauvegardé!)"
+    statusText.Opt("c0x53a653")
+}
+
+; Echap pour annuler la calibration
+Escape:: {
+    global calibrating, statusText
+    if (calibrating != "") {
+        Hotkey("~LButton", CaptureClick, "Off")
+        SetTimer(CalibTooltip, 0)
+        ToolTip()
+        calibrating := ""
+        statusText.Value := "✅ Calibration annulée"
+        statusText.Opt("c0x53a653")
+    }
+}
+
+ResetAll() {
+    global positions, configFile, statusText, btnMap
+    positions["shoot_self"]   := {name: "🔫 Tirer sur SOI (Q)",    x: 960,  y: 750, key: "q"}
+    positions["shoot_dealer"] := {name: "🎯 Tirer sur DEALER (E)", x: 960,  y: 350, key: "e"}
+    positions["item_1"]       := {name: "📦 Item 1",                x: 500,  y: 850, key: "1"}
+    positions["item_2"]       := {name: "📦 Item 2",                x: 580,  y: 850, key: "2"}
+    positions["item_3"]       := {name: "📦 Item 3",                x: 660,  y: 850, key: "3"}
+    positions["item_4"]       := {name: "📦 Item 4",                x: 740,  y: 850, key: "4"}
+    positions["item_5"]       := {name: "📦 Item 5",                x: 820,  y: 850, key: "5"}
+    positions["item_6"]       := {name: "📦 Item 6",                x: 900,  y: 850, key: "6"}
+    positions["item_7"]       := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
+    positions["item_8"]       := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
+    SaveConfig()
+    for id, pos in positions {
+        if btnMap.Has(id)
+            btnMap[id].Value := "X:" pos.x " Y:" pos.y
+    }
+    statusText.Value := "🔄 Positions réinitialisées!"
+    statusText.Opt("c0xeaeaea")
+}
+
+ManualSave() {
+    global statusText
+    SaveConfig()
+    statusText.Value := "💾 Configuration sauvegardée!"
+    statusText.Opt("c0x53a653")
+}
+
+ToggleScript() {
+    global scriptActive, statusText
+    scriptActive := !scriptActive
+    if (scriptActive) {
+        statusText.Value := "✅ Script ACTIF"
+        statusText.Opt("c0x53a653")
+    } else {
+        statusText.Value := "⏸️ Script en PAUSE"
+        statusText.Opt("c0xe94560")
+    }
+}
+
+; ============================================================
+;  FONCTION DE CLIC
+; ============================================================
+
 ClickAt(x, y) {
-    ; Sauvegarde la position actuelle
-    MouseGetPos(&origX, &origY)
-    ; Déplace, clique, et revient
     MouseMove(x, y, 2)
-    Sleep(50)
+    Sleep(80)
     Click()
     Sleep(50)
 }
 
 ; ============================================================
-;  HOTKEYS - Actifs uniquement quand Buckshot Roulette est ouvert
+;  HOTKEYS DU JEU
 ; ============================================================
 
-; Mode calibration (F1) - toujours actif
-F1:: {
-    global calibrationMode
-    calibrationMode := !calibrationMode
-    if (calibrationMode) {
-        ToolTip("📐 MODE CALIBRATION ON`nBouge la souris et regarde les coordonnées`nF2 = Sauvegarder position`nF1 = Désactiver")
-        SetTimer(ShowCoords, 50)
-    } else {
-        SetTimer(ShowCoords, 0)
-        ToolTip()
-    }
-}
-
-ShowCoords() {
-    MouseGetPos(&mx, &my)
-    ToolTip("📐 X: " mx "  Y: " my "`nF2 = Sauvegarder cette position")
-}
-
-; Sauvegarder position (F2) - toujours actif
-F2:: {
-    global savedPositions
-    MouseGetPos(&mx, &my)
-    savedPositions.Push({x: mx, y: my})
-    count := savedPositions.Length
-    ToolTip("💾 Position #" count " sauvegardée: X=" mx " Y=" my)
-    SetTimer(() => ToolTip(), -2000)
-}
-
-; Recharger script (F3)
-F3:: {
-    Reload()
-}
-
-; Quitter script (F4)
-F4:: {
-    ExitApp()
-}
-
-; --- HOTKEYS DU JEU (actifs seulement dans Buckshot Roulette) ---
-#HotIf WinActive("Buckshot Roulette")
+#HotIf WinActive("Buckshot Roulette") && scriptActive && calibrating = ""
 
 q:: {
-    global SHOOT_SELF_X, SHOOT_SELF_Y
-    ClickAt(SHOOT_SELF_X, SHOOT_SELF_Y)
-    ToolTip("💀 Tir sur SOI")
-    SetTimer(() => ToolTip(), -1000)
+    global positions
+    p := positions["shoot_self"]
+    ClickAt(p.x, p.y)
 }
 
 e:: {
-    global SHOOT_DEALER_X, SHOOT_DEALER_Y
-    ClickAt(SHOOT_DEALER_X, SHOOT_DEALER_Y)
-    ToolTip("🔫 Tir sur DEALER")
-    SetTimer(() => ToolTip(), -1000)
+    global positions
+    p := positions["shoot_dealer"]
+    ClickAt(p.x, p.y)
 }
 
 1:: {
-    global ITEM_1_X, ITEM_1_Y
-    ClickAt(ITEM_1_X, ITEM_1_Y)
-    ToolTip("📦 Item 1")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_1"]
+    ClickAt(p.x, p.y)
 }
 
 2:: {
-    global ITEM_2_X, ITEM_2_Y
-    ClickAt(ITEM_2_X, ITEM_2_Y)
-    ToolTip("📦 Item 2")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_2"]
+    ClickAt(p.x, p.y)
 }
 
 3:: {
-    global ITEM_3_X, ITEM_3_Y
-    ClickAt(ITEM_3_X, ITEM_3_Y)
-    ToolTip("📦 Item 3")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_3"]
+    ClickAt(p.x, p.y)
 }
 
 4:: {
-    global ITEM_4_X, ITEM_4_Y
-    ClickAt(ITEM_4_X, ITEM_4_Y)
-    ToolTip("📦 Item 4")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_4"]
+    ClickAt(p.x, p.y)
 }
 
 5:: {
-    global ITEM_5_X, ITEM_5_Y
-    ClickAt(ITEM_5_X, ITEM_5_Y)
-    ToolTip("📦 Item 5")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_5"]
+    ClickAt(p.x, p.y)
 }
 
 6:: {
-    global ITEM_6_X, ITEM_6_Y
-    ClickAt(ITEM_6_X, ITEM_6_Y)
-    ToolTip("📦 Item 6")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_6"]
+    ClickAt(p.x, p.y)
 }
 
 7:: {
-    global ITEM_7_X, ITEM_7_Y
-    ClickAt(ITEM_7_X, ITEM_7_Y)
-    ToolTip("📦 Item 7")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_7"]
+    ClickAt(p.x, p.y)
 }
 
 8:: {
-    global ITEM_8_X, ITEM_8_Y
-    ClickAt(ITEM_8_X, ITEM_8_Y)
-    ToolTip("📦 Item 8")
-    SetTimer(() => ToolTip(), -800)
+    global positions
+    p := positions["item_8"]
+    ClickAt(p.x, p.y)
 }
 
 #HotIf
