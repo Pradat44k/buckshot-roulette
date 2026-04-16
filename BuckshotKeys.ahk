@@ -24,6 +24,10 @@ positions["item_5"]      := {name: "📦 Item 5",                x: 820,  y: 850
 positions["item_6"]      := {name: "📦 Item 6",                x: 900,  y: 850, key: "6"}
 positions["item_7"]      := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
 positions["item_8"]      := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
+positions["box_1"]       := {name: "📥 Boîte Item 1",           x: 860,  y: 450, key: ""}
+positions["box_2"]       := {name: "📥 Boîte Item 2",           x: 940,  y: 450, key: ""}
+positions["box_3"]       := {name: "📥 Boîte Item 3",           x: 1020, y: 450, key: ""}
+positions["box_4"]       := {name: "📥 Boîte Item 4",           x: 1100, y: 450, key: ""}
 
 ; --- ÉTAT ---
 calibrating := ""
@@ -107,14 +111,35 @@ CreateMainGUI() {
     mainGui.Add("Text", "x20 y" yPos " w360 h2 Background0x333355")
     yPos += 8
 
-    ; --- Section ITEMS ---
+    ; --- Section BOÎTE ---
     mainGui.SetFont("s12 Bold c0xe94560")
-    mainGui.Add("Text", "x20 y" yPos " w360", "📦 ITEMS")
+    mainGui.Add("Text", "x20 y" yPos " w360", "📥 BOÎTE D'ITEMS (TAB = ramasser tout)")
     mainGui.SetFont("s10 Norm c0xeaeaea")
     yPos += 28
 
     for id, pos in positions {
-        if (id = "shoot_self" || id = "shoot_dealer")
+        if (SubStr(id, 1, 4) != "box_")
+            continue
+        btn := mainGui.Add("Button", "x20 y" yPos " w240 h30", pos.name)
+        btn.OnEvent("Click", MakeCalibHandler(id))
+        coordLabel := mainGui.Add("Text", "x270 y" (yPos + 6) " w120 c0x53a653", "X:" pos.x " Y:" pos.y)
+        btnMap[id] := coordLabel
+        yPos += 34
+    }
+
+    ; --- Separator ---
+    mainGui.SetFont("s1")
+    mainGui.Add("Text", "x20 y" yPos " w360 h2 Background0x333355")
+    yPos += 8
+
+    ; --- Section ITEMS ---
+    mainGui.SetFont("s12 Bold c0xe94560")
+    mainGui.Add("Text", "x20 y" yPos " w360", "📦 ITEMS SUR TABLE")
+    mainGui.SetFont("s10 Norm c0xeaeaea")
+    yPos += 28
+
+    for id, pos in positions {
+        if (SubStr(id, 1, 5) != "item_")
             continue
         btn := mainGui.Add("Button", "x20 y" yPos " w240 h30", pos.name)
         btn.OnEvent("Click", MakeCalibHandler(id))
@@ -356,6 +381,10 @@ ResetAll() {
     positions["item_6"]       := {name: "📦 Item 6",                x: 900,  y: 850, key: "6"}
     positions["item_7"]       := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
     positions["item_8"]       := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
+    positions["box_1"]        := {name: "📥 Boîte Item 1",           x: 860,  y: 450, key: ""}
+    positions["box_2"]        := {name: "📥 Boîte Item 2",           x: 940,  y: 450, key: ""}
+    positions["box_3"]        := {name: "📥 Boîte Item 3",           x: 1020, y: 450, key: ""}
+    positions["box_4"]        := {name: "📥 Boîte Item 4",           x: 1100, y: 450, key: ""}
     SaveConfig()
     for id, pos in positions {
         if btnMap.Has(id)
@@ -469,6 +498,19 @@ e:: {
     global positions
     p := positions["item_8"]
     ClickAt(p.x, p.y)
+}
+
+; --- TAB = Ramasser tous les items de la boîte ---
+Tab:: {
+    global positions
+    Loop 4 {
+        id := "box_" A_Index
+        if positions.Has(id) {
+            p := positions[id]
+            ClickAt(p.x, p.y)
+            Sleep(350)
+        }
+    }
 }
 
 ; --- Shell counter hotkeys (dans le jeu) ---
