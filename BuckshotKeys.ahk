@@ -24,10 +24,11 @@ positions["item_5"]      := {name: "📦 Item 5",                x: 820,  y: 850
 positions["item_6"]      := {name: "📦 Item 6",                x: 900,  y: 850, key: "6"}
 positions["item_7"]      := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
 positions["item_8"]      := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
-positions["box_1"]       := {name: "📥 Boîte Item 1",           x: 860,  y: 450, key: ""}
-positions["box_2"]       := {name: "📥 Boîte Item 2",           x: 940,  y: 450, key: ""}
-positions["box_3"]       := {name: "📥 Boîte Item 3",           x: 1020, y: 450, key: ""}
-positions["box_4"]       := {name: "📥 Boîte Item 4",           x: 1100, y: 450, key: ""}
+positions["open_box"]    := {name: "📥 OUVRIR la boîte",         x: 960,  y: 500, key: ""}
+positions["box_1"]       := {name: "🎲 Boîte Item 1",            x: 860,  y: 450, key: ""}
+positions["box_2"]       := {name: "🎲 Boîte Item 2",            x: 940,  y: 450, key: ""}
+positions["box_3"]       := {name: "🎲 Boîte Item 3",            x: 1020, y: 450, key: ""}
+positions["box_4"]       := {name: "🎲 Boîte Item 4",            x: 1100, y: 450, key: ""}
 
 ; --- ÉTAT ---
 calibrating := ""
@@ -113,9 +114,17 @@ CreateMainGUI() {
 
     ; --- Section BOÎTE ---
     mainGui.SetFont("s12 Bold c0xe94560")
-    mainGui.Add("Text", "x20 y" yPos " w360", "📥 BOÎTE D'ITEMS (TAB = ramasser tout)")
+    mainGui.Add("Text", "x20 y" yPos " w360", "📥 BOÎTE D'ITEMS (TAB = tout auto)")
     mainGui.SetFont("s10 Norm c0xeaeaea")
     yPos += 28
+
+    ; Bouton ouvrir la boîte
+    openBoxPos := positions["open_box"]
+    btnOpenBox := mainGui.Add("Button", "x20 y" yPos " w240 h30", openBoxPos.name)
+    btnOpenBox.OnEvent("Click", MakeCalibHandler("open_box"))
+    coordOpenBox := mainGui.Add("Text", "x270 y" (yPos + 6) " w120 c0x53a653", "X:" openBoxPos.x " Y:" openBoxPos.y)
+    btnMap["open_box"] := coordOpenBox
+    yPos += 34
 
     for id, pos in positions {
         if (SubStr(id, 1, 4) != "box_")
@@ -381,10 +390,11 @@ ResetAll() {
     positions["item_6"]       := {name: "📦 Item 6",                x: 900,  y: 850, key: "6"}
     positions["item_7"]       := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
     positions["item_8"]       := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
-    positions["box_1"]        := {name: "📥 Boîte Item 1",           x: 860,  y: 450, key: ""}
-    positions["box_2"]        := {name: "📥 Boîte Item 2",           x: 940,  y: 450, key: ""}
-    positions["box_3"]        := {name: "📥 Boîte Item 3",           x: 1020, y: 450, key: ""}
-    positions["box_4"]        := {name: "📥 Boîte Item 4",           x: 1100, y: 450, key: ""}
+    positions["open_box"]     := {name: "📥 OUVRIR la boîte",         x: 960,  y: 500, key: ""}
+    positions["box_1"]        := {name: "🎲 Boîte Item 1",            x: 860,  y: 450, key: ""}
+    positions["box_2"]        := {name: "🎲 Boîte Item 2",            x: 940,  y: 450, key: ""}
+    positions["box_3"]        := {name: "🎲 Boîte Item 3",            x: 1020, y: 450, key: ""}
+    positions["box_4"]        := {name: "🎲 Boîte Item 4",            x: 1100, y: 450, key: ""}
     SaveConfig()
     for id, pos in positions {
         if btnMap.Has(id)
@@ -500,9 +510,14 @@ e:: {
     ClickAt(p.x, p.y)
 }
 
-; --- TAB = Ramasser tous les items de la boîte ---
+; --- TAB = Ouvrir la boîte + Ramasser tous les items ---
 Tab:: {
     global positions
+    ; 1. Cliquer sur la boîte pour l'ouvrir
+    b := positions["open_box"]
+    ClickAt(b.x, b.y)
+    Sleep(1200)  ; Attendre l'animation de dispersion
+    ; 2. Ramasser chaque item dispersé
     Loop 4 {
         id := "box_" A_Index
         if positions.Has(id) {
