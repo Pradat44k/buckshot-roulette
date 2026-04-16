@@ -25,10 +25,6 @@ positions["item_6"]      := {name: "📦 Item 6",                x: 900,  y: 850
 positions["item_7"]      := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
 positions["item_8"]      := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
 positions["open_box"]    := {name: "📥 OUVRIR la boîte",         x: 960,  y: 500, key: ""}
-positions["box_1"]       := {name: "🎲 Boîte Item 1",            x: 860,  y: 450, key: ""}
-positions["box_2"]       := {name: "🎲 Boîte Item 2",            x: 940,  y: 450, key: ""}
-positions["box_3"]       := {name: "🎲 Boîte Item 3",            x: 1020, y: 450, key: ""}
-positions["box_4"]       := {name: "🎲 Boîte Item 4",            x: 1100, y: 450, key: ""}
 
 ; --- ÉTAT ---
 calibrating := ""
@@ -114,27 +110,24 @@ CreateMainGUI() {
 
     ; --- Section BOÎTE ---
     mainGui.SetFont("s12 Bold c0xe94560")
-    mainGui.Add("Text", "x20 y" yPos " w360", "📥 BOÎTE D'ITEMS (TAB = tout auto)")
+    mainGui.Add("Text", "x20 y" yPos " w360", "📥 BOÎTE D'ITEMS")
     mainGui.SetFont("s10 Norm c0xeaeaea")
     yPos += 28
 
-    ; Bouton ouvrir la boîte
+    ; Bouton calibrer la boîte
     openBoxPos := positions["open_box"]
     btnOpenBox := mainGui.Add("Button", "x20 y" yPos " w240 h30", openBoxPos.name)
     btnOpenBox.OnEvent("Click", MakeCalibHandler("open_box"))
     coordOpenBox := mainGui.Add("Text", "x270 y" (yPos + 6) " w120 c0x53a653", "X:" openBoxPos.x " Y:" openBoxPos.y)
     btnMap["open_box"] := coordOpenBox
-    yPos += 34
+    yPos += 36
 
-    for id, pos in positions {
-        if (SubStr(id, 1, 4) != "box_")
-            continue
-        btn := mainGui.Add("Button", "x20 y" yPos " w240 h30", pos.name)
-        btn.OnEvent("Click", MakeCalibHandler(id))
-        coordLabel := mainGui.Add("Text", "x270 y" (yPos + 6) " w120 c0x53a653", "X:" pos.x " Y:" pos.y)
-        btnMap[id] := coordLabel
-        yPos += 34
-    }
+    ; Bouton PLACER ITEMS (déclenche l'action)
+    mainGui.SetFont("s10 Bold c0x1a1a2e", "Segoe UI")
+    btnPlace := mainGui.Add("Button", "x20 y" yPos " w360 h35 Background0x00ff41", "▶ PLACER ITEMS (TAB) - Ouvre boîte + ramasse tout")
+    btnPlace.OnEvent("Click", (*) => AutoPlaceItems())
+    mainGui.SetFont("s10 Norm c0xeaeaea", "Segoe UI")
+    yPos += 42
 
     ; --- Separator ---
     mainGui.SetFont("s1")
@@ -391,10 +384,6 @@ ResetAll() {
     positions["item_7"]       := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
     positions["item_8"]       := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
     positions["open_box"]     := {name: "📥 OUVRIR la boîte",         x: 960,  y: 500, key: ""}
-    positions["box_1"]        := {name: "🎲 Boîte Item 1",            x: 860,  y: 450, key: ""}
-    positions["box_2"]        := {name: "🎲 Boîte Item 2",            x: 940,  y: 450, key: ""}
-    positions["box_3"]        := {name: "🎲 Boîte Item 3",            x: 1020, y: 450, key: ""}
-    positions["box_4"]        := {name: "🎲 Boîte Item 4",            x: 1100, y: 450, key: ""}
     SaveConfig()
     for id, pos in positions {
         if btnMap.Has(id)
@@ -510,20 +499,24 @@ e:: {
     ClickAt(p.x, p.y)
 }
 
-; --- TAB = Ouvrir la boîte + Ramasser tous les items ---
+; --- TAB = Ouvrir boîte + placer tous les items ---
 Tab:: {
+    AutoPlaceItems()
+}
+
+AutoPlaceItems() {
     global positions
-    ; 1. Cliquer sur la boîte pour l'ouvrir
+    ; 1. Ouvrir la boîte
     b := positions["open_box"]
     ClickAt(b.x, b.y)
-    Sleep(1200)  ; Attendre l'animation de dispersion
-    ; 2. Ramasser chaque item dispersé
-    Loop 4 {
-        id := "box_" A_Index
+    Sleep(1500)  ; Attendre animation d'ouverture
+    ; 2. Cliquer sur chaque item pour le ramasser/placer
+    Loop 8 {
+        id := "item_" A_Index
         if positions.Has(id) {
             p := positions[id]
             ClickAt(p.x, p.y)
-            Sleep(350)
+            Sleep(300)
         }
     }
 }
