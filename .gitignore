@@ -1,0 +1,10 @@
+# Ignore game files (too large for GitHub)
+*.exe
+*.dll
+*.wav
+*.png
+*.url
+*.msi
+_Redist/
+Original Soundtrack/
+HOW TO RUN GAME!!.txt
