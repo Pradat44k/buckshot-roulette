@@ -13,8 +13,9 @@ configFile := A_ScriptDir "\BuckshotKeys.ini"
 
 ; --- POSITIONS (chargées depuis le fichier INI ou par défaut) ---
 positions := Map()
-positions["shoot_self"]  := {name: "🔫 Tirer sur SOI (Q)",    x: 960,  y: 750, key: "q"}
-positions["shoot_dealer"] := {name: "🎯 Tirer sur DEALER (E)", x: 960,  y: 350, key: "e"}
+positions["grab_gun"]    := {name: "🔫 Prendre le GUN (auto)", x: 960,  y: 550, key: ""}
+positions["shoot_self"]  := {name: "💀 Tirer sur SOI (Q)",     x: 960,  y: 750, key: "q"}
+positions["shoot_dealer"] := {name: "🎯 Tirer sur DEALER (E)",  x: 960,  y: 350, key: "e"}
 positions["item_1"]      := {name: "📦 Item 1",                x: 500,  y: 850, key: "1"}
 positions["item_2"]      := {name: "📦 Item 2",                x: 580,  y: 850, key: "2"}
 positions["item_3"]      := {name: "📦 Item 3",                x: 660,  y: 850, key: "3"}
@@ -92,7 +93,7 @@ CreateMainGUI() {
 
     yPos := 95
     for id, pos in positions {
-        if (id != "shoot_self" && id != "shoot_dealer")
+        if (id != "grab_gun" && id != "shoot_self" && id != "shoot_dealer")
             continue
         btn := mainGui.Add("Button", "x20 y" yPos " w240 h32", pos.name)
         btn.OnEvent("Click", MakeCalibHandler(id))
@@ -344,8 +345,9 @@ Escape:: {
 
 ResetAll() {
     global positions, configFile, statusText, btnMap
-    positions["shoot_self"]   := {name: "🔫 Tirer sur SOI (Q)",    x: 960,  y: 750, key: "q"}
-    positions["shoot_dealer"] := {name: "🎯 Tirer sur DEALER (E)", x: 960,  y: 350, key: "e"}
+    positions["grab_gun"]     := {name: "🔫 Prendre le GUN (auto)", x: 960,  y: 550, key: ""}
+    positions["shoot_self"]   := {name: "💀 Tirer sur SOI (Q)",     x: 960,  y: 750, key: "q"}
+    positions["shoot_dealer"] := {name: "🎯 Tirer sur DEALER (E)",  x: 960,  y: 350, key: "e"}
     positions["item_1"]       := {name: "📦 Item 1",                x: 500,  y: 850, key: "1"}
     positions["item_2"]       := {name: "📦 Item 2",                x: 580,  y: 850, key: "2"}
     positions["item_3"]       := {name: "📦 Item 3",                x: 660,  y: 850, key: "3"}
@@ -401,12 +403,22 @@ ClickAt(x, y) {
 
 q:: {
     global positions
+    ; D'abord prendre le gun
+    g := positions["grab_gun"]
+    ClickAt(g.x, g.y)
+    Sleep(400)
+    ; Puis tirer sur soi
     p := positions["shoot_self"]
     ClickAt(p.x, p.y)
 }
 
 e:: {
     global positions
+    ; D'abord prendre le gun
+    g := positions["grab_gun"]
+    ClickAt(g.x, g.y)
+    Sleep(400)
+    ; Puis tirer sur le dealer
     p := positions["shoot_dealer"]
     ClickAt(p.x, p.y)
 }
