@@ -4,8 +4,8 @@ CoordMode("Mouse", "Screen")
 CoordMode("ToolTip", "Screen")
 
 ; ============================================================
-;  BUCKSHOT ROULETTE - CUSTOM KEYBINDS v2.0
-;  Avec Menu de Calibration GUI
+;  BUCKSHOT ROULETTE - CUSTOM KEYBINDS v3.0
+;  Avec Menu GUI + LCD Shell Counter
 ; ============================================================
 
 ; --- CONFIG FILE ---
@@ -28,14 +28,19 @@ positions["item_8"]      := {name: "📦 Item 8",                x: 1060, y: 850
 calibrating := ""
 scriptActive := true
 
+; --- SHELL COUNTER ---
+liveShells := 0
+blankShells := 0
+
 ; --- CHARGER CONFIG ---
 LoadConfig()
 
-; --- CRÉER LE MENU GUI ---
+; --- CRÉER LES GUI ---
 CreateMainGUI()
+CreateLCDOverlay()
 
 ; ============================================================
-;  FONCTIONS
+;  FONCTIONS - CONFIG
 ; ============================================================
 
 LoadConfig() {
@@ -57,12 +62,16 @@ SaveConfig() {
     }
 }
 
+; ============================================================
+;  GUI PRINCIPALE - CALIBRATION
+; ============================================================
+
 CreateMainGUI() {
     global positions, mainGui, statusText, btnMap
 
     btnMap := Map()
 
-    mainGui := Gui("+AlwaysOnTop +ToolWindow", "🎮 BuckshotKeys v2.0")
+    mainGui := Gui("+AlwaysOnTop +ToolWindow", "🎮 BuckshotKeys v3.0")
     mainGui.BackColor := "0x1a1a2e"
     mainGui.SetFont("s11 c0xeaeaea", "Segoe UI")
 
@@ -140,6 +149,141 @@ CreateMainGUI() {
     mainGui.OnEvent("Close", (*) => ExitApp())
 }
 
+; ============================================================
+;  LCD OVERLAY - SHELL COUNTER
+; ============================================================
+
+CreateLCDOverlay() {
+    global lcdGui, lcdLiveText, lcdBlankText, lcdTotalText, lcdProbaText, lcdBarLive, lcdBarBlank
+    global liveShells, blankShells
+
+    lcdGui := Gui("+AlwaysOnTop +ToolWindow -Caption +E0x20", "LCD")
+    lcdGui.BackColor := "0x0a0a0a"
+
+    ; Bordure verte style LCD
+    ; --- Cadre extérieur ---
+    lcdGui.SetFont("s1")
+    lcdGui.Add("Text", "x0 y0 w260 h2 Background0x00ff41")
+    lcdGui.Add("Text", "x0 y188 w260 h2 Background0x00ff41")
+    lcdGui.Add("Text", "x0 y0 w2 h190 Background0x00ff41")
+    lcdGui.Add("Text", "x258 y0 w2 h190 Background0x00ff41")
+
+    ; --- Titre LCD ---
+    lcdGui.SetFont("s9 Bold c0x00ff41", "Consolas")
+    lcdGui.Add("Text", "x10 y8 w240 Center", "╔══ SHELL TRACKER ══╗")
+
+    ; --- LIVE shells ---
+    lcdGui.SetFont("s11 Bold c0xff3333", "Consolas")
+    lcdGui.Add("Text", "x15 y32 w80", "● LIVE:")
+    lcdGui.SetFont("s22 Bold c0xff3333", "Consolas")
+    lcdLiveText := lcdGui.Add("Text", "x130 y25 w50 Center", "0")
+    ; Boutons +/-
+    lcdGui.SetFont("s9 Bold c0xff3333", "Consolas")
+    btnLiveMinus := lcdGui.Add("Button", "x190 y28 w28 h24", " - ")
+    btnLiveMinus.OnEvent("Click", (*) => AdjustShells("live", -1))
+    btnLivePlus := lcdGui.Add("Button", "x222 y28 w28 h24", " + ")
+    btnLivePlus.OnEvent("Click", (*) => AdjustShells("live", 1))
+
+    ; --- BLANK shells ---
+    lcdGui.SetFont("s11 Bold c0x33aaff", "Consolas")
+    lcdGui.Add("Text", "x15 y62 w80", "○ BLANK:")
+    lcdGui.SetFont("s22 Bold c0x33aaff", "Consolas")
+    lcdBlankText := lcdGui.Add("Text", "x130 y55 w50 Center", "0")
+    ; Boutons +/-
+    lcdGui.SetFont("s9 Bold c0x33aaff", "Consolas")
+    btnBlankMinus := lcdGui.Add("Button", "x190 y58 w28 h24", " - ")
+    btnBlankMinus.OnEvent("Click", (*) => AdjustShells("blank", -1))
+    btnBlankPlus := lcdGui.Add("Button", "x222 y58 w28 h24", " + ")
+    btnBlankPlus.OnEvent("Click", (*) => AdjustShells("blank", 1))
+
+    ; --- Separator ---
+    lcdGui.SetFont("s1")
+    lcdGui.Add("Text", "x15 y88 w230 h1 Background0x00ff41")
+
+    ; --- Total ---
+    lcdGui.SetFont("s10 Norm c0x00ff41", "Consolas")
+    lcdGui.Add("Text", "x15 y95 w60", "TOTAL:")
+    lcdTotalText := lcdGui.Add("Text", "x80 y95 w60", "0")
+
+    ; --- Barre visuelle ---
+    lcdGui.SetFont("s1")
+    lcdGui.Add("Text", "x15 y115 w230 h18 Background0x1a1a1a")  ; fond barre
+    lcdBarLive := lcdGui.Add("Text", "x15 y115 w0 h18 Background0xff3333")
+    lcdBarBlank := lcdGui.Add("Text", "x15 y115 w0 h18 Background0x33aaff")
+
+    ; --- Probabilité ---
+    lcdGui.SetFont("s10 Bold c0xffcc00", "Consolas")
+    lcdGui.Add("Text", "x15 y140 w100", "% LIVE:")
+    lcdGui.SetFont("s18 Bold c0xffcc00", "Consolas")
+    lcdProbaText := lcdGui.Add("Text", "x120 y135 w80", "-- %")
+
+    ; --- Bouton NEW ROUND ---
+    lcdGui.SetFont("s8 Bold c0x00ff41", "Consolas")
+    btnNewRound := lcdGui.Add("Button", "x15 y163 w110 h22", "⟳ NEW ROUND")
+    btnNewRound.OnEvent("Click", (*) => NewRound())
+
+    ; --- Bouton fermer ---
+    lcdGui.SetFont("s8 Bold c0xff3333", "Consolas")
+    btnCloseLcd := lcdGui.Add("Button", "x135 y163 w110 h22", "✕ FERMER LCD")
+    btnCloseLcd.OnEvent("Click", (*) => lcdGui.Hide())
+
+    ; Positionner en haut à droite de l'écran
+    lcdGui.Show("x1640 y20 w260 h190 NoActivate")
+}
+
+AdjustShells(shellType, delta) {
+    global liveShells, blankShells
+    if (shellType = "live") {
+        liveShells := Max(0, liveShells + delta)
+    } else {
+        blankShells := Max(0, blankShells + delta)
+    }
+    UpdateLCD()
+}
+
+NewRound() {
+    global liveShells, blankShells
+    liveShells := 0
+    blankShells := 0
+    UpdateLCD()
+}
+
+UpdateLCD() {
+    global liveShells, blankShells, lcdLiveText, lcdBlankText, lcdTotalText, lcdProbaText
+    global lcdBarLive, lcdBarBlank
+
+    total := liveShells + blankShells
+
+    ; Mettre à jour les textes
+    lcdLiveText.Value := liveShells
+    lcdBlankText.Value := blankShells
+    lcdTotalText.Value := total
+
+    ; Probabilité
+    if (total > 0) {
+        proba := Round((liveShells / total) * 100)
+        lcdProbaText.Value := proba " %"
+    } else {
+        lcdProbaText.Value := "-- %"
+    }
+
+    ; Barre visuelle (largeur totale = 230 pixels)
+    barWidth := 230
+    if (total > 0) {
+        liveW := Round((liveShells / total) * barWidth)
+        blankW := barWidth - liveW
+    } else {
+        liveW := 0
+        blankW := 0
+    }
+    lcdBarLive.Move(15, , liveW, )
+    lcdBarBlank.Move(15 + liveW, , blankW, )
+}
+
+; ============================================================
+;  FONCTIONS - CALIBRATION
+; ============================================================
+
 MakeCalibHandler(targetId) {
     return (*) => StartCalibration(targetId)
 }
@@ -150,11 +294,7 @@ StartCalibration(id) {
     pos := positions[id]
     statusText.Value := "🔴 CLIQUE dans le jeu pour: " pos.name
     statusText.Opt("c0xe94560")
-
-    ; Afficher un tooltip qui suit la souris
     SetTimer(CalibTooltip, 30)
-
-    ; Attendre le clic de l'utilisateur via Hotkey
     Hotkey("~LButton", CaptureClick, "On")
 }
 
@@ -173,33 +313,23 @@ CaptureClick(thisHotkey) {
     global calibrating, positions, statusText, btnMap
     if (calibrating = "")
         return
-
-    ; Désactiver le hotkey
     Hotkey("~LButton", CaptureClick, "Off")
     SetTimer(CalibTooltip, 0)
     ToolTip()
-
-    ; Capturer la position
     MouseGetPos(&mx, &my)
     id := calibrating
     pos := positions[id]
     positions[id] := {name: pos.name, x: mx, y: my, key: pos.key}
-
-    ; Mettre à jour le label
     if btnMap.Has(id) {
         btnMap[id].Value := "X:" mx " Y:" my
         btnMap[id].Opt("c0x53a653")
     }
-
-    ; Sauvegarder automatiquement
     SaveConfig()
-
     calibrating := ""
     statusText.Value := "✅ " pos.name " → X:" mx " Y:" my " (Sauvegardé!)"
     statusText.Opt("c0x53a653")
 }
 
-; Echap pour annuler la calibration
 Escape:: {
     global calibrating, statusText
     if (calibrating != "") {
@@ -327,6 +457,26 @@ e:: {
     global positions
     p := positions["item_8"]
     ClickAt(p.x, p.y)
+}
+
+; --- Shell counter hotkeys (dans le jeu) ---
+; Flèche haut/bas = ajuster LIVE
+Up:: {
+    AdjustShells("live", 1)
+}
+Down:: {
+    AdjustShells("live", -1)
+}
+; Flèche gauche/droite = ajuster BLANK
+Right:: {
+    AdjustShells("blank", 1)
+}
+Left:: {
+    AdjustShells("blank", -1)
+}
+; R = New Round
+r:: {
+    NewRound()
 }
 
 #HotIf
