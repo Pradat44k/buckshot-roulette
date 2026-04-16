@@ -25,6 +25,14 @@ positions["item_6"]      := {name: "📦 Item 6",                x: 900,  y: 850
 positions["item_7"]      := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
 positions["item_8"]      := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
 positions["open_box"]    := {name: "📥 OUVRIR la boîte",         x: 960,  y: 500, key: ""}
+positions["place_1"]     := {name: "📍 Placer Item 1",            x: 500,  y: 850, key: ""}
+positions["place_2"]     := {name: "📍 Placer Item 2",            x: 580,  y: 850, key: ""}
+positions["place_3"]     := {name: "📍 Placer Item 3",            x: 660,  y: 850, key: ""}
+positions["place_4"]     := {name: "📍 Placer Item 4",            x: 740,  y: 850, key: ""}
+positions["place_5"]     := {name: "📍 Placer Item 5",            x: 820,  y: 850, key: ""}
+positions["place_6"]     := {name: "📍 Placer Item 6",            x: 900,  y: 850, key: ""}
+positions["place_7"]     := {name: "📍 Placer Item 7",            x: 980,  y: 850, key: ""}
+positions["place_8"]     := {name: "📍 Placer Item 8",            x: 1060, y: 850, key: ""}
 
 ; --- ÉTAT ---
 calibrating := ""
@@ -122,9 +130,21 @@ CreateMainGUI() {
     btnMap["open_box"] := coordOpenBox
     yPos += 36
 
+    ; Positions de placement
+    for id, pos in positions {
+        if (SubStr(id, 1, 6) != "place_")
+            continue
+        btn := mainGui.Add("Button", "x20 y" yPos " w240 h28", pos.name)
+        btn.OnEvent("Click", MakeCalibHandler(id))
+        coordLabel := mainGui.Add("Text", "x270 y" (yPos + 5) " w120 c0x53a653", "X:" pos.x " Y:" pos.y)
+        btnMap[id] := coordLabel
+        yPos += 32
+    }
+    yPos += 4
+
     ; Bouton PLACER ITEMS (déclenche l'action)
     mainGui.SetFont("s10 Bold c0x1a1a2e", "Segoe UI")
-    btnPlace := mainGui.Add("Button", "x20 y" yPos " w360 h35 Background0x00ff41", "▶ PLACER ITEMS (TAB) - Ouvre boîte + ramasse tout")
+    btnPlace := mainGui.Add("Button", "x20 y" yPos " w360 h35 Background0x00ff41", "▶ PLACER ITEMS (TAB) - Ouvre boîte + place tout")
     btnPlace.OnEvent("Click", (*) => AutoPlaceItems())
     mainGui.SetFont("s10 Norm c0xeaeaea", "Segoe UI")
     yPos += 42
@@ -384,6 +404,14 @@ ResetAll() {
     positions["item_7"]       := {name: "📦 Item 7",                x: 980,  y: 850, key: "7"}
     positions["item_8"]       := {name: "📦 Item 8",                x: 1060, y: 850, key: "8"}
     positions["open_box"]     := {name: "📥 OUVRIR la boîte",         x: 960,  y: 500, key: ""}
+    positions["place_1"]      := {name: "📍 Placer Item 1",            x: 500,  y: 850, key: ""}
+    positions["place_2"]      := {name: "📍 Placer Item 2",            x: 580,  y: 850, key: ""}
+    positions["place_3"]      := {name: "📍 Placer Item 3",            x: 660,  y: 850, key: ""}
+    positions["place_4"]      := {name: "📍 Placer Item 4",            x: 740,  y: 850, key: ""}
+    positions["place_5"]      := {name: "📍 Placer Item 5",            x: 820,  y: 850, key: ""}
+    positions["place_6"]      := {name: "📍 Placer Item 6",            x: 900,  y: 850, key: ""}
+    positions["place_7"]      := {name: "📍 Placer Item 7",            x: 980,  y: 850, key: ""}
+    positions["place_8"]      := {name: "📍 Placer Item 8",            x: 1060, y: 850, key: ""}
     SaveConfig()
     for id, pos in positions {
         if btnMap.Has(id)
@@ -512,13 +540,13 @@ AutoPlaceItems() {
     Sleep(1500)  ; Attendre animation d'ouverture
     ; Prendre → Placer → Prendre → Placer (en alternant)
     Loop 8 {
-        id := "item_" A_Index
-        if positions.Has(id) {
+        placeId := "place_" A_Index
+        if positions.Has(placeId) {
             ; Prendre l'item dans la boîte
             ClickAt(b.x, b.y)
             Sleep(500)
             ; Placer sur le slot
-            p := positions[id]
+            p := positions[placeId]
             ClickAt(p.x, p.y)
             Sleep(500)
         }
