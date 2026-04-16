@@ -506,17 +506,21 @@ Tab:: {
 
 AutoPlaceItems() {
     global positions
-    ; 1. Ouvrir la boîte
+    ; Ouvrir la boîte d'abord
     b := positions["open_box"]
     ClickAt(b.x, b.y)
     Sleep(1500)  ; Attendre animation d'ouverture
-    ; 2. Cliquer sur chaque item pour le ramasser/placer
+    ; Prendre → Placer → Prendre → Placer (en alternant)
     Loop 8 {
         id := "item_" A_Index
         if positions.Has(id) {
+            ; Prendre l'item dans la boîte
+            ClickAt(b.x, b.y)
+            Sleep(500)
+            ; Placer sur le slot
             p := positions[id]
             ClickAt(p.x, p.y)
-            Sleep(300)
+            Sleep(500)
         }
     }
 }
